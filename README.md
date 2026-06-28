@@ -1,6 +1,6 @@
 # RustScan
 
-A fast recursive file search CLI written in Rust. Walks a directory tree and finds lines that contain a case-sensitive substring pattern.
+A fast recursive file search CLI written in Rust. Walks a directory tree and finds lines that contain a given substring pattern (not a regular expression).
 
 ## Requirements
 
@@ -17,22 +17,33 @@ The binary is written to `target/release/rustscan` (or `target/debug/rustscan` f
 ## Usage
 
 ```bash
-rustscan <PATTERN> <PATH>
+rustscan [OPTIONS] <PATTERN> <PATH>
 ```
 
-| Argument | Description |
-| -------- | ----------- |
-| `PATTERN` | Case-sensitive substring to search for (not a regular expression) |
+| Argument / option | Description |
+| ----------------- | ----------- |
+| `PATTERN` | Substring to search for (not a regular expression). Case-sensitive by default. |
 | `PATH` | Directory to search recursively |
+| `-i`, `--ignore-case` | Match without regard to letter case |
+| `-n`, `--line-number` | Include 1-based line numbers in the output |
 
 ### Examples
 
 ```bash
-# Search the current project for "TODO"
+# Case-sensitive search in the current project
 cargo run -- "TODO" .
 
+# Case-insensitive search
+cargo run -- -i "todo" .
+
+# Include line numbers
+cargo run -- -n "TODO" .
+
+# Both flags together
+cargo run -- -i -n "todo" ./src
+
 # Release binary
-./target/release/rustscan "fn main" ./src
+./target/release/rustscan -n "fn main" ./src
 
 # Help
 cargo run -- --help
@@ -40,19 +51,30 @@ cargo run -- --help
 
 ### Output format
 
-Each matching line is printed as:
+By default, each matching line is printed as:
+
+```text
+path:line_contents
+```
+
+With `-n` / `--line-number`, matches include the 1-based line number:
 
 ```text
 path:line_number:line_contents
 ```
 
-Line numbers are **1-based**. Files with no matches produce no output.
+Files with no matches produce no output. Line contents are printed as they appear in the file (original casing is preserved even when `--ignore-case` is used).
 
-Example:
+**Default (no flags):**
+
+```text
+src/search.rs:pub fn run_search(pattern: &str, path: &Path) {
+```
+
+**With `-n`:**
 
 ```text
 src/search.rs:17:pub fn run_search(pattern: &str, path: &Path) {
-src/main.rs:10:    run_search(&args.pattern, &args.path);
 ```
 
 ### Errors and warnings
@@ -70,13 +92,13 @@ Symlinks and non-regular files are ignored for now.
 
 ```text
 src/
-├── main.rs    # Entry point; wires CLI to search
+├── main.rs    # Entry point; wires CLI options into search
 ├── cli.rs     # Argument parsing (clap)
 ├── search.rs  # Directory traversal and substring search
 └── utils.rs   # Shared helpers (placeholder for later)
 ```
 
-Traversal (`walk_dir`) and per-file search (`search_file`) are kept separate so each has a single responsibility.
+Traversal (`walk_dir`), per-file search (`search_file`), and match printing (`print_match`) are kept separate so each has a single responsibility. CLI flags are passed as simple values so search does not depend on the clap types.
 
 ## Development
 
@@ -84,7 +106,7 @@ Traversal (`walk_dir`) and per-file search (`search_file`) are kept separate so 
 cargo fmt
 cargo build
 cargo clippy -- -D warnings
-cargo run -- "pattern" ./some/dir
+cargo run -- -i -n "pattern" ./some/dir
 ```
 
 ## License

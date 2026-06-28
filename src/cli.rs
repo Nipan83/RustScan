@@ -21,6 +21,14 @@ pub struct Cli {
     /// Directory path to search in
     #[arg(value_name = "PATH")]
     pub path: PathBuf,
+
+    /// Perform a case-insensitive search
+    #[arg(short = 'i', long = "ignore-case", default_value_t = false)]
+    pub ignore_case: bool,
+
+    /// Prefix each match with its 1-based line number
+    #[arg(short = 'n', long = "line-number", default_value_t = false)]
+    pub line_number: bool,
 }
 
 impl Cli {
