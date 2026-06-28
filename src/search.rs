@@ -1,7 +1,7 @@
 //! Search logic for matching patterns against file contents.
 //!
-//! This milestone implements recursive filesystem traversal only.
-//! Pattern matching will be added in a later step.
+//! Recursively walks a directory tree and performs a case-sensitive
+//! substring search in each regular file.
 
 use std::fs;
 use std::io;
@@ -10,10 +10,11 @@ use std::process;
 
 /// Run a search for `pattern` under `path`.
 ///
-/// Recursively walks `path` and prints every regular file found.
-/// Directories that cannot be read are skipped with a warning.
-/// Pattern matching is not performed yet; `pattern` is reserved for later use.
-pub fn run_search(_pattern: &str, path: &Path) {
+/// Recursively walks `path` and searches each regular file for lines
+/// containing `pattern` as a case-sensitive substring. Directories that
+/// cannot be read are skipped with a warning; unreadable or non-UTF-8
+/// files are likewise warned about and skipped.
+pub fn run_search(pattern: &str, path: &Path) {
     if !path.exists() {
         eprintln!("error: path does not exist: {}", path.display());
         process::exit(1);
@@ -24,17 +25,15 @@ pub fn run_search(_pattern: &str, path: &Path) {
         process::exit(1);
     }
 
-    let mut count = 0usize;
-    walk_dir(path, &mut count);
-    println!("\nFound {} file(s)", count);
+    walk_dir(path, pattern);
 }
 
-/// Recursively visit `dir`, printing regular files and counting them.
-fn walk_dir(dir: &Path, count: &mut usize) {
+/// Recursively visit `dir` and search each regular file for `pattern`.
+fn walk_dir(dir: &Path, pattern: &str) {
     let entries = match fs::read_dir(dir) {
         Ok(entries) => entries,
         Err(err) => {
-            warn_skip(dir, &err);
+            warn_skip_dir(dir, &err);
             return;
         }
     };
@@ -62,15 +61,34 @@ fn walk_dir(dir: &Path, count: &mut usize) {
         };
 
         if file_type.is_dir() {
-            walk_dir(&path, count);
+            walk_dir(&path, pattern);
         } else if file_type.is_file() {
-            println!("{}", path.display());
-            *count += 1;
+            search_file(&path, pattern);
         }
         // Symlinks and other special files are ignored for now.
     }
 }
 
-fn warn_skip(dir: &Path, err: &io::Error) {
+/// Open `path` as UTF-8 text and print lines containing `pattern`.
+///
+/// Output format for each match: `path:line_number:line_contents`
+/// (1-based line numbers). Prints nothing if there are no matches.
+fn search_file(path: &Path, pattern: &str) {
+    let contents = match fs::read_to_string(path) {
+        Ok(contents) => contents,
+        Err(err) => {
+            eprintln!("warning: skipping {}: {}", path.display(), err);
+            return;
+        }
+    };
+
+    for (idx, line) in contents.lines().enumerate() {
+        if line.contains(pattern) {
+            println!("{}:{}:{}", path.display(), idx + 1, line);
+        }
+    }
+}
+
+fn warn_skip_dir(dir: &Path, err: &io::Error) {
     eprintln!("warning: skipping directory {}: {}", dir.display(), err);
 }
