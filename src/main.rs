@@ -12,5 +12,6 @@ fn main() {
         &args.path,
         args.ignore_case,
         args.line_number,
+        args.count,
     );
 }

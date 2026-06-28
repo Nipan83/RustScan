@@ -25,7 +25,10 @@ rustscan [OPTIONS] <PATTERN> <PATH>
 | `PATTERN` | Substring to search for (not a regular expression). Case-sensitive by default. |
 | `PATH` | Directory to search recursively |
 | `-i`, `--ignore-case` | Match without regard to letter case |
-| `-n`, `--line-number` | Include 1-based line numbers in the output |
+| `-n`, `--line-number` | Include 1-based line numbers in line-by-line output |
+| `-c`, `--count` | Print `path:match_count` per file instead of each matching line |
+
+When `--count` is set, it takes precedence over line-by-line output, so `--line-number` has no effect. `--ignore-case` still applies in count mode.
 
 ### Examples
 
@@ -39,7 +42,13 @@ cargo run -- -i "todo" .
 # Include line numbers
 cargo run -- -n "TODO" .
 
-# Both flags together
+# Per-file match counts
+cargo run -- -c "TODO" .
+
+# Count with case-insensitive matching
+cargo run -- -c -i "todo" ./src
+
+# Line mode with both matching flags
 cargo run -- -i -n "todo" ./src
 
 # Release binary
@@ -51,19 +60,27 @@ cargo run -- --help
 
 ### Output format
 
-By default, each matching line is printed as:
+**Line mode** (default, when `--count` is not set):
 
 ```text
 path:line_contents
 ```
 
-With `-n` / `--line-number`, matches include the 1-based line number:
+With `-n` / `--line-number`:
 
 ```text
 path:line_number:line_contents
 ```
 
-Files with no matches produce no output. Line contents are printed as they appear in the file (original casing is preserved even when `--ignore-case` is used).
+**Count mode** (`-c` / `--count`):
+
+```text
+path:match_count
+```
+
+Only files with at least one match are printed. Files with zero matches produce no output.
+
+Line contents are printed as they appear in the file (original casing is preserved even when `--ignore-case` is used).
 
 **Default (no flags):**
 
@@ -75,6 +92,12 @@ src/search.rs:pub fn run_search(pattern: &str, path: &Path) {
 
 ```text
 src/search.rs:17:pub fn run_search(pattern: &str, path: &Path) {
+```
+
+**With `-c`:**
+
+```text
+src/search.rs:3
 ```
 
 ### Errors and warnings
@@ -98,7 +121,7 @@ src/
 └── utils.rs   # Shared helpers (placeholder for later)
 ```
 
-Traversal (`walk_dir`), per-file search (`search_file`), and match printing (`print_match`) are kept separate so each has a single responsibility. CLI flags are passed as simple values so search does not depend on the clap types.
+Traversal (`walk_dir`), matching (`line_matches`), and output (`print_line_match` / `print_count_match`) stay separate so each has a single responsibility. Each file is scanned in one pass. CLI flags are passed as simple values so search does not depend on the clap types.
 
 ## Development
 
@@ -106,7 +129,7 @@ Traversal (`walk_dir`), per-file search (`search_file`), and match printing (`pr
 cargo fmt
 cargo build
 cargo clippy -- -D warnings
-cargo run -- -i -n "pattern" ./some/dir
+cargo run -- -c -i "pattern" ./some/dir
 ```
 
 ## License

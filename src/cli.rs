@@ -29,6 +29,10 @@ pub struct Cli {
     /// Prefix each match with its 1-based line number
     #[arg(short = 'n', long = "line-number", default_value_t = false)]
     pub line_number: bool,
+
+    /// Print only a per-file count of matching lines (`path:count`)
+    #[arg(short = 'c', long = "count", default_value_t = false)]
+    pub count: bool,
 }
 
 impl Cli {
